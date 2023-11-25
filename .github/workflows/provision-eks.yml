@@ -24,8 +24,8 @@ jobs:
       - name: Terraform Plan
         run: terraform -chdir=./eks plan
 
-      # - name: Terraform Apply   # The terraform state file is store in the runner's host
-      #   run: terraform -chdir=./eks -state=/home/ubuntu/terraform.tfstate apply --auto-approve
+      - name: Terraform Apply   # The terraform state file is store in the runner's host
+        run: terraform -chdir=./eks -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate apply --auto-approve
 
   alb-ingress-controller-provision:
     name: Provision ALB Ingress Controller
@@ -43,3 +43,38 @@ jobs:
 
       - name: Terraform Plan
         run: terraform -chdir=./eks/alb plan
+
+      - name: Terraform Apply   # The terraform state file is store in the runner's host
+        run: terraform -chdir=./eks/alb -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate apply --auto-approve
+
+  alb-destroy:
+    name: Destroy ALB Ingress Controller
+    if: startsWith(github.ref, 'refs/tags/destroy-')
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Terraform Plan (with destroy option)
+        run: terraform -chdir=./eks/alb plan -destroy
+
+      - name: Terraform Destroy   # The specific terraform's state file is needed
+        run:  terraform -chdir=./eks/alb -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate destroy --auto-approve
+
+  eks-destroy:
+    name: Destroy EKS Cluster
+    if: startsWith(github.ref, 'refs/tags/destroy-')
+    needs: 
+      - alb-destroy
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Terraform Plan (with destroy option)
+        run: terraform -chdir=./eks plan -destroy
+
+      - name: Terraform Destroy   # The specific terraform's state file is needed
+        run:  terraform -chdir=./eks -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate destroy --auto-approve
