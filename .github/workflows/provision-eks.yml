@@ -25,7 +25,7 @@ jobs:
         run: terraform -chdir=./eks plan
 
       - name: Terraform Apply   # The terraform state file is store in the runner's host
-        run: terraform -chdir=./eks -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate apply --auto-approve
+        run: terraform -chdir=./eks apply -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate --auto-approve
 
   alb-ingress-controller-provision:
     name: Provision ALB Ingress Controller
@@ -45,7 +45,7 @@ jobs:
         run: terraform -chdir=./eks/alb plan
 
       - name: Terraform Apply   # The terraform state file is store in the runner's host
-        run: terraform -chdir=./eks/alb -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate apply --auto-approve
+        run: terraform -chdir=./eks/alb apply -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
 
   alb-destroy:
     name: Destroy ALB Ingress Controller
@@ -60,7 +60,7 @@ jobs:
         run: terraform -chdir=./eks/alb plan -destroy
 
       - name: Terraform Destroy   # The specific terraform's state file is needed
-        run:  terraform -chdir=./eks/alb -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate destroy --auto-approve
+        run:  terraform -chdir=./eks/alb destroy -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
 
   eks-destroy:
     name: Destroy EKS Cluster
@@ -77,4 +77,4 @@ jobs:
         run: terraform -chdir=./eks plan -destroy
 
       - name: Terraform Destroy   # The specific terraform's state file is needed
-        run:  terraform -chdir=./eks -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate destroy --auto-approve
+        run:  terraform -chdir=./eks destroy -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate --auto-approve
