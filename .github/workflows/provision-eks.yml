@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform -chdir=./eks init
       
       - name: Terraform Plan
-        run:  terraform -chdir=./eks plan
+        run: terraform -chdir=./eks plan
