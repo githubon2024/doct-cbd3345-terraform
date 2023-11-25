@@ -1,0 +1,21 @@
+---
+name: Provision EKS
+on:
+  push:
+    branches:
+      - 'add/action-provision-eks'
+    tags:
+      - 'release-*'
+      - 'destroy-*'
+
+jobs:
+  eks-provision:
+    name: Provision EKS cluster in AWS
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      
+      - name: Terraform Plan
+        run:  terraform -chdir=./eks plan
