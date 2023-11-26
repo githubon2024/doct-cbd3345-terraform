@@ -2,8 +2,6 @@
 name: Provision EKS
 on:
   push:
-    branches:
-      - 'add/action-provision-eks'
     tags:
       - 'release-*'
       - 'destroy-*'
