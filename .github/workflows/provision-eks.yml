@@ -89,6 +89,9 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Terraform Init
+        run: terraform -chdir=./eks init
+
       - name: Terraform Plan (with destroy option)    # The specific terraform's state file is needed
         run: terraform -chdir=./eks plan -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate -destroy
 
