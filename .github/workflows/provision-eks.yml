@@ -1,0 +1,97 @@
+---
+name: Provision EKS
+on:
+  push:
+    tags:
+      - 'release-*'
+      - 'destroy-*'
+
+jobs:
+  eks-provision:
+    name: Provision EKS cluster in AWS
+    if: ${{ startsWith(github.ref, 'refs/tags/release-') || startsWith(github.ref, 'refs/heads/add') }}
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform -chdir=./eks init
+      
+      - name: Terraform Plan
+        run: terraform -chdir=./eks plan
+
+      - name: Terraform Apply   # The terraform state file is store in the runner's host
+        run: terraform -chdir=./eks apply -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate --auto-approve
+
+  kube-config-setup:
+    name: Configuring Kube Configuration File to Access EKS API
+    if: ${{ startsWith(github.ref, 'refs/tags/release-') || startsWith(github.ref, 'refs/heads/add') }}
+    needs:
+      - eks-provision
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Configuring Kube Configuration using AWS CLI
+        env:
+          CLUSTER_NAME: cbd3345-eks-cluster   # Update this variable if needed
+        run: KUBECONFIG=~/.kube/eks_k8s_config aws eks update-kubeconfig --region ca-central-1 --name ${{ env.CLUSTER_NAME }}
+
+  alb-ingress-controller-provision:
+    name: Provision ALB Ingress Controller
+    if: ${{ startsWith(github.ref, 'refs/tags/release-') || startsWith(github.ref, 'refs/heads/add') }}
+    needs:
+      - kube-config-setup
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform -chdir=./eks/alb init
+
+      - name: Terraform Plan
+        run: terraform -chdir=./eks/alb plan -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate
+
+      - name: Terraform Apply   # The terraform state file is store in the runner's host
+        run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb apply -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
+
+  alb-destroy:
+    name: Destroy ALB Ingress Controller
+    if: startsWith(github.ref, 'refs/tags/destroy-')
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform -chdir=./eks/alb init
+
+      - name: Terraform Plan (with destroy option)    # The specific terraform's state file is needed
+        run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb plan -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate -destroy 
+
+      - name: Terraform Destroy   # The specific terraform's state file is needed
+        run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb destroy -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
+
+  eks-destroy:
+    name: Destroy EKS Cluster
+    if: startsWith(github.ref, 'refs/tags/destroy-')
+    needs: 
+      - alb-destroy
+    runs-on: terraform-provisioner
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform -chdir=./eks init
+
+      - name: Terraform Plan (with destroy option)    # The specific terraform's state file is needed
+        run: terraform -chdir=./eks plan -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate -destroy
+
+      - name: Terraform Destroy   # The specific terraform's state file is needed
+        run:  terraform -chdir=./eks destroy -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate --auto-approve
