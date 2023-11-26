@@ -53,7 +53,7 @@ jobs:
         run: terraform -chdir=./eks/alb init
 
       - name: Terraform Plan
-        run: terraform -chdir=./eks/alb plan -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate
+        run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb plan -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate
 
       - name: Terraform Apply   # The terraform state file is store in the runner's host
         run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb apply -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
