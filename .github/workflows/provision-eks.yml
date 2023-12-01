@@ -1,5 +1,5 @@
 ---
-name: Provision EKS
+name: Provision EKS-For-Test
 on:
   push:
     tags:
