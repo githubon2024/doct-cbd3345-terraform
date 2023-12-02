@@ -1,5 +1,7 @@
 ---
-name: Provision EKS-For-Test
+name: Provision EKS
+
+# Trigger the workflow on push events for tags starting with 'release-' or 'destroy-'
 on:
   push:
     tags:
@@ -7,8 +9,10 @@ on:
       - 'destroy-*'
 
 jobs:
+  # Job to provision EKS cluster
   eks-provision:
     name: Provision EKS cluster in AWS
+    # Run the job only for specific branch patterns
     if: ${{ startsWith(github.ref, 'refs/tags/release-') || startsWith(github.ref, 'refs/heads/add') }}
     runs-on: terraform-provisioner
 
@@ -22,11 +26,13 @@ jobs:
       - name: Terraform Plan
         run: terraform -chdir=./eks plan
 
-      - name: Terraform Apply   # The terraform state file is store in the runner's host
+      - name: Terraform Apply   # Apply the Terraform configuration
         run: terraform -chdir=./eks apply -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate --auto-approve
 
+  # Job to configure Kube Configuration File
   kube-config-setup:
     name: Configuring Kube Configuration File to Access EKS API
+    # Run the job only for specific branch patterns and after the eks-provision job
     if: ${{ startsWith(github.ref, 'refs/tags/release-') || startsWith(github.ref, 'refs/heads/add') }}
     needs:
       - eks-provision
@@ -38,8 +44,10 @@ jobs:
           CLUSTER_NAME: cbd3345-eks-cluster   # Update this variable if needed
         run: KUBECONFIG=~/.kube/eks_k8s_config aws eks update-kubeconfig --region ca-central-1 --name ${{ env.CLUSTER_NAME }}
 
+  # Job to provision ALB Ingress Controller
   alb-ingress-controller-provision:
     name: Provision ALB Ingress Controller
+    # Run the job only for specific branch patterns and after kube-config-setup job
     if: ${{ startsWith(github.ref, 'refs/tags/release-') || startsWith(github.ref, 'refs/heads/add') }}
     needs:
       - kube-config-setup
@@ -55,11 +63,13 @@ jobs:
       - name: Terraform Plan
         run: terraform -chdir=./eks/alb plan -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate
 
-      - name: Terraform Apply   # The terraform state file is store in the runner's host
+      - name: Terraform Apply   # Apply the Terraform configuration for ALB Ingress Controller
         run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb apply -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
 
+  # Job to destroy ALB Ingress Controller
   alb-destroy:
     name: Destroy ALB Ingress Controller
+    # Run the job only for tags starting with 'destroy-'
     if: startsWith(github.ref, 'refs/tags/destroy-')
     runs-on: terraform-provisioner
 
@@ -70,14 +80,16 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=./eks/alb init
 
-      - name: Terraform Plan (with destroy option)    # The specific terraform's state file is needed
+      - name: Terraform Plan (with destroy option)    # Plan the destruction of ALB Ingress Controller
         run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb plan -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate -destroy 
 
-      - name: Terraform Destroy   # The specific terraform's state file is needed
+      - name: Terraform Destroy   # Destroy ALB Ingress Controller
         run: KUBE_CONFIG_PATH=~/.kube/eks_k8s_config terraform -chdir=./eks/alb destroy -state=/home/ubuntu/doct-3345-tfstate/terraform-alb.tfstate --auto-approve
 
+  # Job to destroy EKS Cluster
   eks-destroy:
     name: Destroy EKS Cluster
+    # Run the job only for tags starting with 'destroy-'
     if: startsWith(github.ref, 'refs/tags/destroy-')
     needs: 
       - alb-destroy
@@ -90,8 +102,8 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=./eks init
 
-      - name: Terraform Plan (with destroy option)    # The specific terraform's state file is needed
+      - name: Terraform Plan (with destroy option)    # Plan the destruction of EKS Cluster
         run: terraform -chdir=./eks plan -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate -destroy
 
-      - name: Terraform Destroy   # The specific terraform's state file is needed
+      - name: Terraform Destroy   # Destroy EKS Cluster
         run:  terraform -chdir=./eks destroy -state=/home/ubuntu/doct-3345-tfstate/terraform-eks.tfstate --auto-approve
