@@ -1,5 +1,4 @@
----
-name: Provision EKS
+# Workflow to provision and manage resources in AWS EKS and ALB Ingress Controller
 
 # Trigger the workflow on push events for tags starting with 'release-' or 'destroy-'
 on:
